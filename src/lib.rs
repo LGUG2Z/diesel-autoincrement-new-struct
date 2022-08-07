@@ -1,9 +1,65 @@
+pub use ::macro_rules_attribute::apply;
+pub use ::macro_rules_attribute::derive;
 pub use paste::paste;
+
+pub mod prelude {
+    #[doc(no_inline)]
+    pub use crate::apply;
+    pub use crate::NewInsertable;
+}
+
+#[macro_export]
+/// Macro to generate a New struct for Diesel insertions without an 'id' field
+///
+/// Nicer alternative to wrapping entire struct definitions in [diesel_new].
+///
+/// # Example
+///
+/// ```rust
+/// use diesel_autoincrement_new_struct::apply;
+/// use diesel_autoincrement_new_struct::NewInsertable;
+/// use diesel::prelude::*;
+///
+/// table! {
+///     users(id) {
+///         id -> Integer,
+///         name -> Text,
+///     }
+/// }
+///
+///
+/// /// This is a user
+/// #[apply(NewInsertable!)]
+/// #[derive(Debug, Clone, Queryable, AsChangeset)]
+/// #[diesel(table_name = users)]
+/// pub struct User {
+///     /// This is the ID of the user
+///     id: i32,
+///     /// This is the name of the user
+///     name: String
+/// }
+///
+/// // The macro will generate the following output:
+/// //
+/// // /// This is a user
+/// // #[derive(Debug, Clone, Queryable, AsChangeset)]
+/// // #[derive(Insertable)]
+/// // #[diesel(table_name = users)]
+/// // pub struct NewUser {
+/// //    /// This is the name of the user
+/// //    name: String
+/// // }
+/// ```
+macro_rules! NewInsertable {( $($item:tt)* ) => (
+    #[$crate::derive($crate::diesel_new!)]
+    $($item)*
+)}
+
 /// Macro to generate a New struct for Diesel insertions without an 'id' field
 ///
 /// All struct and field metadata is kept; documentation, serde attributes etc.
 ///
-/// # Example:
+/// # Example
 ///
 /// ```rust
 /// use diesel_autoincrement_new_struct::diesel_new;
@@ -26,7 +82,7 @@ pub use paste::paste;
 ///         /// This is the name of the user
 ///         name: String
 ///     }
-///  
+///
 ///     // The macro will generate the following output:
 ///     //
 ///     // /// This is a user
@@ -88,9 +144,29 @@ mod tests {
         }
     }
 
+    use super::apply;
+    use super::NewInsertable;
+
+    #[derive(Identifiable)]
+    #[apply(NewInsertable!)]
+    #[derive(Queryable, AsChangeset)]
+    #[diesel(table_name = users)]
+    pub struct SuperUser {
+        #[allow(dead_code)]
+        id: i32,
+        pub name: String,
+    }
+
     #[test]
     fn it_generates_a_new_struct() {
         NewUser {
+            name: String::from("Ferris"),
+        };
+    }
+
+    #[test]
+    fn it_works_with_the_apply_attr_and_identifiable() {
+        NewSuperUser {
             name: String::from("Ferris"),
         };
     }
